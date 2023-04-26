@@ -1,113 +1,101 @@
 #include "controller.h"
 
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
-Controller::Controller() : T(3, 2)
-{
-  ros::NodeHandle nh;
-
-  m_speedCourseSub = nh.subscribe("speed_course", 1000, &Controller::speedCourseCallback, this);
-  m_odometrySub = nh.subscribe("p3d", 1000, &Controller::odometryCallback, this);
-
-
+USVController::USVController(ros::NodeHandle& nh) {
+  m_speedCourseSub = nh.subscribe("speed_course", 10, &USVController::speedCourseCallback, this);
+  m_poseTwistSub = nh.subscribe("p3d", 10, &USVController::poseTwistCallback, this);
   m_leftPub = nh.advertise<std_msgs::Float32>("left_thrust_cmd", 10);
   m_rightPub = nh.advertise<std_msgs::Float32>("right_thrust_cmd", 10);
 
-  // Initialize thruster configuration matrix
-  T << 50, 50, 0, 0, -0.39 * 50, 0.39 * 50;
+  m_desiredSpeed = 0.0;
+  m_desiredCourse = 0.0;
+  m_currentSpeed = 0.0;
+  m_currentYaw = 0.0;
+
+  m_thrusterConfigMatrix = Eigen::MatrixXd::Zero(3, 2);
+  m_thrusterConfigMatrix << 50, 50, 0, 0, -0.39 * 50, 0.39 * 50;
+
+  // Initialize integral error accumulators
+  m_speedIntegralError = 0.0;
+  m_courseIntegralError = 0.0;
+
+  // Initialize integral gains
+  m_Ki_speed = 0.1;
+  m_Ki_course = 0.1;
 }
 
-double Controller::calculateSurgeForce(double deltaTime, double u_d)
-{
-  // Implement the surge force calculation similar to the provided code
-  static double integralTerm = 0.0;
-
-  double u_d_dot = 0.0;
-  double u_tilde = u_d - u;
-
-  // integralTerm += u_tilde * deltaTime;
-
-  return mass_u * (u_d_dot - Kp_u * u_tilde - Ki_u* integralTerm);
+void USVController::speedCourseCallback(const usv_msgs::SpeedCourse& msg) {
+  m_desiredSpeed = msg.speed;
+  m_desiredCourse = msg.course;
 }
 
-double Controller::calculateYawMoment(double deltaTime, double psi_d)
-{
-  // Implement the yaw moment calculation similar to the provided code
-  static double integralTerm = 0.0;
-
-  double psi_d_dot = 0.0;
-  double r_tilde = psi_d - psi;
-
-  // integralTerm += r_tilde * deltaTime;
-
-  return mass_psi * (psi_d_dot - Kp_psi * r_tilde - Ki_psi * integralTerm);
+void USVController::poseTwistCallback(const nav_msgs::Odometry& msg) {
+  m_currentSpeed = msg.twist.twist.linear.x;
+  m_currentYaw = tf::getYaw(msg.pose.pose.orientation);
 }
 
-Eigen::Vector2d Controller::thrustAllocation(Eigen::Vector3d tau_d)
-{
-  // Initialize thruster configuration matrix pseudoinverse
+void USVController::controlLoop() {
+  double Kp_speed = 5.0;  // Proportional gain for speed
+  double Kp_course = 4.0; // Proportional gain for course
+
+  double dt = 0.1; // Time step for the control loop (1 / loop_rate in the main function)
+
+
+  double speed_error = m_desiredSpeed - m_currentSpeed;
+  double course_error = m_desiredCourse - m_currentYaw;
+
+  // Wrap course_error to [-pi, pi]
+  while (course_error > M_PI) course_error -= 2 * M_PI;
+  while (course_error < -M_PI) course_error += 2 * M_PI;
+
+  // Print speed and heading error
+  ROS_INFO("Speed error(m/s): %f, Heading error(deg): %f", speed_error, course_error * 180.0 / M_PI);
+
+  // Update integral error accumulators
+  m_speedIntegralError += speed_error * dt;
+  m_courseIntegralError += course_error * dt;
+
+  // Calculate control inputs using proportional and integral terms
+  double u_speed = Kp_speed * speed_error + m_Ki_speed * m_speedIntegralError;
+  double u_course = Kp_course * course_error + m_Ki_course * m_courseIntegralError;
+
+  Eigen::VectorXd control_input(3);
+  control_input << u_speed, 0, u_course;
+
   static bool initialized = false;
   static Eigen::MatrixXd pinv(3, 2);
   if (!initialized) {
-    initialized = true;
-    pinv = T.completeOrthogonalDecomposition().pseudoInverse();
+  initialized = true;
+  pinv = m_thrusterConfigMatrix.completeOrthogonalDecomposition().pseudoInverse();
+
+  // Print thruster configuration matrix initialization
+  ROS_INFO("Thruster configuration matrix initialized");
   }
 
-  // Calculate thruster output
-  Eigen::Vector2d u = pinv * tau_d;
+  Eigen::VectorXd thruster_output = pinv * control_input;
 
-  // Ensure in interval [-1, 1]
-  u[0] = std::min(std::max(u[0], -1.0), 1.0);
-  u[1] = std::min(std::max(u[1], -1.0), 1.0);
+  std_msgs::Float32 left_thrust_msg;
+  std_msgs::Float32 right_thrust_msg;
 
-  return u;
-}
+  left_thrust_msg.data = thruster_output(0);
+  right_thrust_msg.data = thruster_output(1);
 
-void Controller::odometryCallback(const nav_msgs::Odometry& odometry)
-{
-  u = odometry.twist.twist.linear.x;
-  
-  tf2::Quaternion q;
-  tf2::fromMsg(odometry.pose.pose.orientation, q);
-  double roll, pitch;
-  tf2::Matrix3x3(q).getRPY(roll, pitch, psi);
+  m_leftPub.publish(left_thrust_msg);
+  m_rightPub.publish(right_thrust_msg);
+  }
 
-  r = odometry.twist.twist.angular.z;
-}
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "usv_controller");
+  ros::NodeHandle nh;
 
+  USVController controller(nh);
 
+  ros::Rate loop_rate(10); // Control loop rate (Hz)
 
-void Controller::speedCourseCallback(const usv_msgs::SpeedCourse& speed_course)
-{
-  // Implement the controller logic
-  // TODO: Customize the logic for the specific speed_course message
-
-  // Calculate the surge force and yaw moment
-  double deltaTime = 0.1; // TODO: Use actual delta time
-  double fx = calculateSurgeForce(deltaTime, speed_course.speed);
-  double mz = calculateYawMoment(deltaTime, speed_course.course); // TODO: Use actual r value
-
-  // Calculate thrust allocation
-  Eigen::Vector3d tau_d(fx, 0, mz);
-  Eigen::Vector2d u = thrustAllocation(tau_d);
-
-  // Publish left and right thrust commands
-  std_msgs::Float32 left_msg;
-  std_msgs::Float32 right_msg;
-  left_msg.data = u[0];
-  right_msg.data = u[1];
-  m_leftPub.publish(left_msg);
-  m_rightPub.publish(right_msg);
-}
-
-
-int main(int argc, char* argv[])
-{
-  ros::init(argc, argv, "controller_node");
-  Controller controller;
-
-  ros::spin();
+  while (ros::ok()) {
+    controller.controlLoop();
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
 
   return 0;
 }

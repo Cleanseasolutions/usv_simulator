@@ -2,54 +2,44 @@
 #define CONTROLLER_H
 
 #include <ros/ros.h>
-#include <usv_msgs/SpeedCourse.h>
 #include <std_msgs/Float32.h>
-#include <nav_msgs/Path.h>
+#include <usv_msgs/SpeedCourse.h>
 #include <nav_msgs/Odometry.h>
-#include <eigen3/Eigen/QR>
-#include <eigen3/Eigen/LU>
-#include <cmath>
+#include <Eigen/Dense>
+#include <tf2/utils.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf/transform_datatypes.h>
 
-class Controller
-{
+
+class USVController {
 public:
-  Controller();
+  USVController(ros::NodeHandle& nh);
+  void speedCourseCallback(const usv_msgs::SpeedCourse& msg);
+  void poseTwistCallback(const nav_msgs::Odometry& msg);
+  void controlLoop();
 
 private:
-  void speedCourseCallback(const usv_msgs::SpeedCourse& speed_course);
-  Eigen::Vector2d thrustAllocation(Eigen::Vector3d tau_d);
-  double calculateSurgeForce(double deltaTime, double u_d);
-  double calculateYawMoment(double deltaTime, double psi_d);
-
-  void odometryCallback(const nav_msgs::Odometry& odometry);
-
-
   ros::Subscriber m_speedCourseSub;
-  ros::Subscriber m_odometrySub;
-
+  ros::Subscriber m_poseTwistSub;
   ros::Publisher m_leftPub;
   ros::Publisher m_rightPub;
 
-  // Thruster configuration matrix
-  Eigen::MatrixXd T;
+  double m_desiredSpeed;
+  double m_desiredCourse;
 
-  // Sensor data
-  double u = 0.0;
-  double psi = 0.0;
-  double r = 0.0;
+  double m_currentSpeed;
+  double m_currentYaw;
 
-  // Speed controller
-  double Kp_u = 2.0;
-  double Ki_u = 1.0;
-  double mass_u = 29 - 5.0; // m - xDotU: 29 - 5
-  double damp_u = 20.0; // xU
+  Eigen::MatrixXd m_thrusterConfigMatrix;
 
-  // Heading controller
-  double Kp_psi = 0.5;
-  double Ki_psi = 1.0;
-  double Kd_psi = 4;
-  double mass_psi = 10.0 - 1.0; // Iz - nDotR
-  double damp_psi = 20.0; // nR
+  // Integral error accumulators
+  double m_speedIntegralError;
+  double m_courseIntegralError;
+
+  // Integral gains
+  double m_Ki_speed;
+  double m_Ki_course;
 };
 
 #endif // CONTROLLER_H
