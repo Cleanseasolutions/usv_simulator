@@ -40,6 +40,11 @@ private:
   // Integral gains
   double m_Ki_speed;
   double m_Ki_course;
+
+  double Kp_speed;  // Proportional gain for speed
+  double Kp_course; // Proportional gain for course
+
+  double dt; // Time step for the control loop (1 / loop_rate in the main function)
 };
 
 #endif // CONTROLLER_H

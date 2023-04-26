@@ -19,8 +19,12 @@ USVController::USVController(ros::NodeHandle& nh) {
   m_courseIntegralError = 0.0;
 
   // Initialize integral gains
-  m_Ki_speed = 0.1;
-  m_Ki_course = 0.1;
+  m_Ki_speed = 0; //5;
+  m_Ki_course = 0; //0.1;
+
+  Kp_speed = 20.0;  // Proportional gain for speed
+  Kp_course = 12.0; // Proportional gain for course
+  dt = 0.1; // Time step for the control loop (1 / loop_rate in the main function)
 }
 
 void USVController::speedCourseCallback(const usv_msgs::SpeedCourse& msg) {
@@ -34,11 +38,6 @@ void USVController::poseTwistCallback(const nav_msgs::Odometry& msg) {
 }
 
 void USVController::controlLoop() {
-  double Kp_speed = 5.0;  // Proportional gain for speed
-  double Kp_course = 4.0; // Proportional gain for course
-
-  double dt = 0.1; // Time step for the control loop (1 / loop_rate in the main function)
-
 
   double speed_error = m_desiredSpeed - m_currentSpeed;
   double course_error = m_desiredCourse - m_currentYaw;
