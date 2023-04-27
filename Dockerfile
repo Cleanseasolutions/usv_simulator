@@ -37,13 +37,19 @@ WORKDIR /home/rosuser/catkin_ws/src
 RUN git clone https://github.com/Cleanseasolutions/usv_simulator.git
 
 # Change to the workspace root
+WORKDIR /home/rosuser/catkin_ws/src/usv_simulator
+
+# Set upstream via ssh
+RUN git remote set-url origin git@github.com:Cleanseasolutions/usv_simulator.git
+
+# Change to the workspace root
 WORKDIR /home/rosuser/catkin_ws
 
-# # Build the workspace
-# RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make"
+# Build the workspace
+RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make"
 
-# # Source the setup.bash file
-# RUN echo "source /home/rosuser/catkin_ws/devel/setup.bash" >> /home/rosuser/.bashrc
+# Source the setup.bash file
+RUN echo "source /home/rosuser/catkin_ws/devel/setup.bash" >> /home/rosuser/.bashrc
 
 # Set up X11 forwarding
 RUN apt-get update && apt-get install -y --no-install-recommends x11-apps \

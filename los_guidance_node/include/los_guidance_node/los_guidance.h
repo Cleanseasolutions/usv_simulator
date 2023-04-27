@@ -26,6 +26,7 @@ private:
   ros::Publisher m_speedCoursePub;
 
   nav_msgs::Path m_path;
+
   // Desired values
   double u_d = 0.0;
   double psi_d = 0.0;
@@ -34,19 +35,6 @@ private:
   double u = 0.0;
   double psi = 0.0;
   double r = 0.0;
-
-    // Speed controller
-  double Kp_u = 2.0;
-  double Ki_u = 1.0;
-  double mass_u = 29 - 5.0; // m - xDotU: 29 - 5
-  double damp_u = 20.0; // xU
-
-  // Heading controller
-  double Kp_psi = 4;
-  double Ki_psi = 1.0;
-  double Kd_psi = 4;
-  double mass_psi = 10.0 - 1.0; // Iz - nDotR
-  double damp_psi = 20.0; // nR
 
 // lookahead distance
   double DELTA = 0.5;
@@ -59,7 +47,7 @@ private:
   // circle of acceptance
   double R = 1.0;
 
-  double m_maxSpeed;
-  double m_maxSpeedTurn;
-  double m_minSpeed;
+  double m_maxSpeed = 1; // m/s
+  double m_maxSpeedTurn = 1; //wtf
+  double m_minSpeed = 0;
 };

@@ -1,4 +1,6 @@
 #include "los_guidance.h"
+#include <usv_msgs/SpeedCourse.h>
+// #include <math>
 
 
 LOSGuidance::LOSGuidance()
@@ -11,10 +13,18 @@ LOSGuidance::LOSGuidance()
   m_speedCoursePub = nh.advertise<usv_msgs::SpeedCourse>("speed_course", 10);
 }
 
-void LOSGuidance::pathCallback(const nav_msgs::Path& path)
+void LOSGuidance::pathCallback(const nav_msgs::Path& msg)
 {
-  m_path = path;
+  m_path = msg;
+  ROS_INFO("Received path with %zu poses", m_path.poses.size());
+
+  // Debugging: Print received poses
+  for (size_t i = 0; i < m_path.poses.size(); ++i)
+  {
+    ROS_INFO("Pose %zu: x: %f, y: %f", i, m_path.poses[i].pose.position.x, m_path.poses[i].pose.position.y);
+  }
 }
+
 
 void LOSGuidance::poseCallback(const nav_msgs::Odometry& pose)
 {
@@ -22,7 +32,7 @@ void LOSGuidance::poseCallback(const nav_msgs::Odometry& pose)
   double y = pose.pose.pose.position.y;
   double psi = tf2::getYaw(pose.pose.pose.orientation);
 
-  u = pose.twist.twist.linear.x;
+  u = std::sqrt(std::pow(pose.twist.twist.linear.x,2) + std::pow(pose.twist.twist.linear.y,2));
   r = pose.twist.twist.angular.z;
 
   followPath(x, y, psi);
@@ -30,69 +40,59 @@ void LOSGuidance::poseCallback(const nav_msgs::Odometry& pose)
 
 void LOSGuidance::followPath(double x, double y, double psi)
 {
-  // Implement the LOS guidance logic similar to the provided code
-  // TODO: Customize the logic for the specific /path and /p3d messages in this implementation
-
-  // Finished?
+  // Check if the path is empty or only has one point
   if (m_path.poses.size() <= 1)
   {
     usv_msgs::SpeedCourse msg;
     msg.speed = 0.0;
     msg.course = psi;
     m_speedCoursePub.publish(msg);
+    ROS_INFO("Path empty");
     return;
   }
 
-  // Identify closest point on path
-  std::vector<geometry_msgs::PoseStamped>::iterator closest;
-  double minDist = std::numeric_limits<double>::max();
-  for (auto it = m_path.poses.begin(); it != m_path.poses.end(); it++)
+  // Find the lookahead point
+  geometry_msgs::PoseStamped lookahead_pose;
+  bool lookahead_found = false;
+  for (size_t i = 0; i < m_path.poses.size() - 1; ++i)
   {
-    double dist = std::sqrt(std::pow(x - it->pose.position.x, 2) +
-                            std::pow(y - it->pose.position.y, 2));
-    if (dist < minDist)
+    geometry_msgs::PoseStamped pose_a = m_path.poses[i];
+    geometry_msgs::PoseStamped pose_b = m_path.poses[i + 1];
+
+    double dx = pose_b.pose.position.x - pose_a.pose.position.x;
+    double dy = pose_b.pose.position.y - pose_a.pose.position.y;
+    double seg_length = std::sqrt(dx * dx + dy * dy);
+
+    double proj_len = ((x - pose_a.pose.position.x) * dx + (y - pose_a.pose.position.y) * dy) / seg_length;
+
+    if (proj_len >= 0 && proj_len <= seg_length)
     {
-      minDist = dist;
-      closest = it;
+      lookahead_pose.pose.position.x = pose_a.pose.position.x + proj_len * dx / seg_length;
+      lookahead_pose.pose.position.y = pose_a.pose.position.y + proj_len * dy / seg_length;
+
+      double lookahead_dist = std::sqrt(std::pow(x - lookahead_pose.pose.position.x, 2) +
+                                        std::pow(y - lookahead_pose.pose.position.y, 2));
+
+      if (lookahead_dist <= DELTA)
+      {
+        lookahead_found = true;
+        break;
+      }
     }
   }
 
-  // Store closest
-  geometry_msgs::PoseStamped pose_d = *closest;
-
-  // Erase previous elements
-  m_path.poses.erase(m_path.poses.begin(), closest);
-
-  // Path tangential angle
-  double gamma_p = tf2::getYaw(pose_d.pose.orientation);
-
-  // Cross-track error
-  double y_e = -(x - pose_d.pose.position.x) * std::sin(gamma_p) +
-               (y - pose_d.pose.position.y) * std::cos(gamma_p);
-
-  // Time-varying lookahead distance
-  double delta_y_e =
-      (delta_max - delta_min) * std::exp(-delta_k * std::pow(y_e, 2)) +
-      delta_min;
-  // if turning => small lookahead distance
-  bool isTurning = false;
-  if ((closest + 1) != m_path.poses.end())
+  // If a lookahead point is not found, use the last point in the path
+  if (!lookahead_found)
   {
-    double nextAngle = tf2::getYaw((*(closest + 1)).pose.orientation);
-    if (std::fabs(gamma_p - nextAngle) > std::numeric_limits<double>::epsilon())
-    {
-      delta_y_e = delta_min;
-      isTurning = true;
-    }
+    lookahead_pose = m_path.poses.back();
   }
 
-  // velocity-path relative angle
-  double chi_r = std::atan(-y_e / delta_y_e);
+  // Calculate desired heading
+  double dx_lookahead = lookahead_pose.pose.position.x - x;
+  double dy_lookahead = lookahead_pose.pose.position.y - y;
+  double chi_d = std::atan2(dy_lookahead, dx_lookahead);
 
-  // desired course angle
-  double chi_d = gamma_p + chi_r;
-
-  // calculate error in heading
+  // Calculate heading error
   double chi_err = chi_d - psi;
   while (chi_err > M_PI)
   {
@@ -103,11 +103,9 @@ void LOSGuidance::followPath(double x, double y, double psi)
     chi_err += 2 * M_PI;
   }
 
-  // calculate desired speed
-  double u = m_maxSpeed * (1 - std::abs(y_e) / 5 - std::abs(chi_err) / M_PI_2);
+  // Calculate desired speed
+  double u = m_maxSpeed * (1 - std::abs(chi_err) / M_PI_2);
   u = std::max(u, m_minSpeed);
-  if (isTurning)
-    u = m_maxSpeedTurn;
 
   // Publish speed and course to controller
   usv_msgs::SpeedCourse msg;
@@ -115,6 +113,7 @@ void LOSGuidance::followPath(double x, double y, double psi)
   msg.course = chi_d;
   m_speedCoursePub.publish(msg);
 }
+
 
 int main(int argc, char* argv[])
 {

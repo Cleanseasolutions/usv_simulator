@@ -19,11 +19,14 @@ USVController::USVController(ros::NodeHandle& nh) {
   m_courseIntegralError = 0.0;
 
   // Initialize integral gains
-  m_Ki_speed = 0; //5;
-  m_Ki_course = 0; //0.1;
+  m_Ki_speed = 5; //5;
+  m_Ki_course = 0.0; //0.1;
 
-  Kp_speed = 20.0;  // Proportional gain for speed
-  Kp_course = 12.0; // Proportional gain for course
+  Kp_speed = 70.0;  // Proportional gain for speed
+  Kp_course = 20.0; // Proportional gain for course
+
+  Kd_course = 1;
+
   dt = 0.1; // Time step for the control loop (1 / loop_rate in the main function)
 }
 
@@ -33,12 +36,25 @@ void USVController::speedCourseCallback(const usv_msgs::SpeedCourse& msg) {
 }
 
 void USVController::poseTwistCallback(const nav_msgs::Odometry& msg) {
-  m_currentSpeed = msg.twist.twist.linear.x;
+  double speed_x_world = msg.twist.twist.linear.x;
+  double speed_y_world = msg.twist.twist.linear.y;
   m_currentYaw = tf::getYaw(msg.pose.pose.orientation);
+
+  // Project the speed onto the boat's heading
+  m_currentSpeed = speed_x_world * cos(m_currentYaw) + speed_y_world * sin(m_currentYaw);
+
+  ROS_INFO("Speed (m/s): %f", m_currentSpeed);
 }
 
-void USVController::controlLoop() {
 
+void USVController::controlLoop() {
+  double speed_x_world = m_currentSpeed * cos(m_currentYaw);
+  double speed_y_world = m_currentSpeed * sin(m_currentYaw);
+
+  // This is speed in the desired heading
+  double speed_desired_heading = speed_x_world * cos(m_desiredCourse) + speed_y_world * sin(m_desiredCourse);
+  
+  // Calculate error
   double speed_error = m_desiredSpeed - m_currentSpeed;
   double course_error = m_desiredCourse - m_currentYaw;
 
@@ -46,6 +62,9 @@ void USVController::controlLoop() {
   while (course_error > M_PI) course_error -= 2 * M_PI;
   while (course_error < -M_PI) course_error += 2 * M_PI;
 
+  // Calculate derivative
+  double course_derivative = (course_error - m_prevCourseError) / 1; //measurement at 1Hz
+  m_prevCourseError = course_error;
   // Print speed and heading error
   ROS_INFO("Speed error(m/s): %f, Heading error(deg): %f", speed_error, course_error * 180.0 / M_PI);
 
@@ -55,7 +74,7 @@ void USVController::controlLoop() {
 
   // Calculate control inputs using proportional and integral terms
   double u_speed = Kp_speed * speed_error + m_Ki_speed * m_speedIntegralError;
-  double u_course = Kp_course * course_error + m_Ki_course * m_courseIntegralError;
+  double u_course = Kp_course * course_error + Kd_course * course_derivative + m_Ki_course * m_courseIntegralError; // PID
 
   Eigen::VectorXd control_input(3);
   control_input << u_speed, 0, u_course;
