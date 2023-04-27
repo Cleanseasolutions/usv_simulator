@@ -92,6 +92,8 @@ void LOSGuidance::followPath(double x, double y, double psi)
   double dy_lookahead = lookahead_pose.pose.position.y - y;
   double chi_d = std::atan2(dy_lookahead, dx_lookahead);
 
+  ROS_INFO("Lookahead point: x: %f, y: %f", lookahead_pose.pose.position.x, lookahead_pose.pose.position.y);
+
   // Calculate heading error
   double chi_err = chi_d - psi;
   while (chi_err > M_PI)
