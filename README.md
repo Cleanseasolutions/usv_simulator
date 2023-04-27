@@ -1,7 +1,7 @@
 # usv_simulator
 A USV simulator for ROS Melodic and Gazebo 9.
 
-Forked from https://bitbucket.org/osrf/vrx.
+Forked from https://bitbucket.org/osrf/vrx
 
 ## Installation
 Navigate to the ```src/``` folder in your catkin workspace, e.g. ```cd ~/catkin_ws/src```. Then run the following (the command ```sudo rosdep init``` will print an error if you have already executed it since installing ROS. This error can be ignored.)
