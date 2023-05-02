@@ -8,12 +8,12 @@ See docker instructions.
 
 
 ## Simulate the Otter USV
-Launch script
+Alternative 1 - Launch script :
 ```
 ./catkin_ws/src/usv_simulator/scripts/run.sh
 ```
 
-Manual:
+Alternative 1 - lanch manually :
 ```
 roslaunch otter_gazebo otter.launch 
 ```
@@ -29,6 +29,7 @@ roslaunch otter_gazebo keydrive.launch
 ```
 
 ### Docker
+Clone the repo, then cd into usv_simulator.
 To build the docker do
 ```
 docker build docker build -t ros-melodic-gazebo.
