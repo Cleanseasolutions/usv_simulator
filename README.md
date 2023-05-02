@@ -4,19 +4,16 @@ A USV simulator for ROS Melodic and Gazebo 9.
 Forked from https://bitbucket.org/osrf/vrx
 
 ## Installation
-Navigate to the ```src/``` folder in your catkin workspace, e.g. ```cd ~/catkin_ws/src```. Then run the following (the command ```sudo rosdep init``` will print an error if you have already executed it since installing ROS. This error can be ignored.)
-```
-git clone https://github.com/jhlenes/usv_simulator.git
-cd ..
-sudo apt update
-sudo rosdep init
-rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -y
-catkin_make
-source devel/setup.bash
-```
+See docker instructions.
+
 
 ## Simulate the Otter USV
+Launch script
+```
+./catkin_ws/src/usv_simulator/scripts/run.sh
+```
+
+Manual:
 ```
 roslaunch otter_gazebo otter.launch 
 ```
@@ -33,8 +30,10 @@ roslaunch otter_gazebo keydrive.launch
 
 ### Docker
 To build the docker do
-'docker build docker build -t ros-melodic-gazebo .'
-
-To run the docker do
-
-'docker run -it --rm     -e DISPLAY=$DISPLAY     -v /tmp/.X11-unix:/tmp/.X11-unix  -v ~/.ssh:/home/rosuser/.ssh   --memory 2g  --memory-swap 4g --name ros-melodic-container     ros-melodic-gazebo'
+```
+docker build docker build -t ros-melodic-gazebo.
+```
+To run the docker run
+```
+docker run -it --rm     -e DISPLAY=$DISPLAY     -v /tmp/.X11-unix:/tmp/.X11-unix  -v ~/.ssh:/home/rosuser/.ssh   --memory 2g  --memory-swap 4g --name ros-melodic-container     ros-melodic-gazebo'
+```
