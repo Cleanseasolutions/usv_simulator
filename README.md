@@ -32,7 +32,7 @@ roslaunch otter_gazebo keydrive.launch
 Clone the repo, then cd into usv_simulator.
 To build the docker do
 ```
-docker build -t ros-melodic-gazebo .
+docker build --build-arg GIT_USER_EMAIL=$(git config --get user.email) --build-arg GIT_USER_NAME=$(git config --get user.name) -t ros-melodic-gazebo .
 ```
 To run the docker run
 ```
