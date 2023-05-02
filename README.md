@@ -30,3 +30,11 @@ Check out the launch files for available arguments.
 ```
 roslaunch otter_gazebo keydrive.launch 
 ```
+
+### Docker
+To build the docker do
+'docker build docker build -t ros-melodic-gazebo .'
+
+To run the docker do
+
+'docker run -it --rm     -e DISPLAY=$DISPLAY     -v /tmp/.X11-unix:/tmp/.X11-unix  -v ~/.ssh:/home/rosuser/.ssh   --memory 2g  --memory-swap 4g --name ros-melodic-container     ros-melodic-gazebo'

@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     vim \
     tmux \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Initialize rosdep
@@ -38,9 +39,11 @@ RUN git clone https://github.com/Cleanseasolutions/usv_simulator.git
 
 # Change to the workspace root
 WORKDIR /home/rosuser/catkin_ws/src/usv_simulator
+RUN git pull
 
 # Set upstream via ssh
-RUN git remote set-url origin git@github.com:Cleanseasolutions/usv_simulator.git
+RUN git remote add org-fork git@github.com:Cleanseasolutions/usv_simulator.git
+
 
 # Change to the workspace root
 WORKDIR /home/rosuser/catkin_ws
@@ -72,6 +75,9 @@ RUN echo 'source /opt/ros/${ROS_DISTRO}/setup.bash' >> /home/rosuser/.bashrc \
 # Switch to the new user
 USER rosuser
 WORKDIR /home/rosuser
+RUN git config --global user.email "mbheir@gmail.com"
+RUN git config --global user.name "Martin Heir"
+RUN /bin/bash -c "source /home/rosuser/catkin_ws/devel/setup.bash"
 
 # Expose ports for ROS
 EXPOSE 11311
