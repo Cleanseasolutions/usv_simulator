@@ -37,7 +37,7 @@ private:
   double r = 0.0;
 
 // lookahead distance
-  double DELTA = 0.5;
+  double DELTA = 6;
 
   // time-varying lookahead distance
   double delta_max = 4.0;
