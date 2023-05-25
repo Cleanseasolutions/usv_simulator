@@ -35,7 +35,7 @@ WORKDIR /home/rosuser/catkin_ws/src
 
 # Clone the USV simulator repository
 # Replace "your_usv_simulator_repository.git" with the actual repository URL
-RUN git clone https://github.com/Cleanseasolutions/usv_simulator.git
+RUN git clone https://github.com/Cleanseasolutions/usv_simulator
 
 # Change to the workspace root
 WORKDIR /home/rosuser/catkin_ws/src/usv_simulator
@@ -50,7 +50,7 @@ WORKDIR /home/rosuser/catkin_ws
 
 # Build the workspace
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make --only-pkg-with-deps usv_msgs"
-
+RUN /bin/bash -c "rm -rf /home/rosuser/catkin_ws/build"
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make"
 
 # Source the setup.bash file
@@ -80,10 +80,12 @@ WORKDIR /home/rosuser
 RUN git config --global user.email "mbheir@gmail.com"
 RUN git config --global user.name "Martin Heir"
 RUN /bin/bash -c "source /home/rosuser/catkin_ws/devel/setup.bash"
+RUN /bin/bash -c "chmod +x /home/rosuser/catkin_ws/src/usv_simulator/script/run.sh"
+RUN /bin/bash -c "cp /home/rosuser/catkin_ws/src/usv_simulator/script/run.sh /home/rosuser/run.sh"
 
 # Expose ports for ROS
 EXPOSE 11311
 EXPOSE 9090
 
 # Set entrypoint
-CMD ["/bin/bash"]
+CMD ["/home/rosuser/run.sh"]
