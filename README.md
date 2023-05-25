@@ -37,5 +37,5 @@ docker build --build-arg GIT_USER_EMAIL="$(git config --get user.email)" --build
 ```
 To run the docker run
 ```
-docker run -it --rm     -e DISPLAY=$DISPLAY     -v /tmp/.X11-unix:/tmp/.X11-unix  -v ~/.ssh:/home/rosuser/.ssh   --memory 2g  --memory-swap 4g --name ros-melodic-container     ros-melodic-gazebo'
+docker run -it --rm     -e DISPLAY=$DISPLAY     -v /tmp/.X11-unix:/tmp/.X11-unix  -v ~/.ssh:/home/rosuser/.ssh   --memory 2g  --memory-swap 4g --name ros-melodic-container     ros-melodic-gazebo
 ```
