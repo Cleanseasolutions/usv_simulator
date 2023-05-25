@@ -49,6 +49,8 @@ RUN git remote add org-fork git@github.com:Cleanseasolutions/usv_simulator.git
 WORKDIR /home/rosuser/catkin_ws
 
 # Build the workspace
+RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make --only-pkg-with-deps usv_msgs"
+
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && catkin_make"
 
 # Source the setup.bash file
