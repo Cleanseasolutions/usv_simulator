@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
-#include <usv_msgs/SpeedCourse.h>
+#include <usv_msgs/SpeedCourse.msg>
 #include <std_msgs/Float32.h>
 #include <tf2/utils.h>
 #include <tf2_ros/transform_listener.h>

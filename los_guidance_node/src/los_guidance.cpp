@@ -1,5 +1,5 @@
 #include "los_guidance.h"
-#include <usv_msgs/SpeedCourse.h>
+#include <usv_msgs/SpeedCourse.msg>
 // #include <math>
 
 

@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float32.h>
-#include <usv_msgs/SpeedCourse.h>
+#include <usv_msgs/SpeedCourse.msg>
 #include <nav_msgs/Odometry.h>
 #include <Eigen/Dense>
 #include <tf2/utils.h>
